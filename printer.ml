@@ -163,6 +163,46 @@ let name_of tm =
   | _ -> "";;
 
 (* ------------------------------------------------------------------------- *)
+(* Colors                                                                    *)
+(* ------------------------------------------------------------------------- *)
+
+let printer_use_color = ref true;;
+
+(* These numbers are ANSI color codes. *)
+(* Const *)
+let printer_color_const:string option ref = ref (Some "32") (* green *);;
+(* Reserved words, excluding non-alphabets *)
+let printer_color_resword:string option ref = ref (Some "34") (* blue *);;
+(* Binders *)
+let printer_color_binder:string option ref = ref (Some "35") (* purple *);;
+(* Infixes *)
+let printer_color_infix:string option ref = ref None;;
+(* Prefixes *)
+let printer_color_prefix:string option ref = ref None;;
+(* Types *)
+let printer_color_type:string option ref = ref (Some "36") (* light blue *);;
+
+let pp_print_string_const, pp_print_string_resword, pp_print_string_binder,
+    pp_print_string_infix, pp_print_string_prefix, pp_print_string_type =
+  let f (colorcode:string option) fmt s =
+    if !Sys.interactive && !printer_use_color && colorcode <> None then
+      (* \027 is decimal 27 (oct 33) which corresponds to
+         "Set foreground color" in Select Graphic Rendition *)
+      let ansicmd = "\027[" ^ (Option.get colorcode) ^ "m" in
+      (pp_print_as fmt 0 ansicmd; (* consider ansicmd as 0-len string *)
+       pp_print_string fmt s;
+       pp_print_as fmt 0 "\027[0m")
+    else pp_print_string fmt s
+  in
+  (fun fmt s -> f (!printer_color_const) fmt s),
+  (fun fmt s -> f (!printer_color_resword) fmt s),
+  (fun fmt s -> f (!printer_color_binder) fmt s),
+  (fun fmt s -> f (!printer_color_infix) fmt s),
+  (fun fmt s -> f (!printer_color_prefix) fmt s),
+  (fun fmt s -> f (!printer_color_type) fmt s)
+;;
+
+(* ------------------------------------------------------------------------- *)
 (* Printer for types.                                                        *)
 (* ------------------------------------------------------------------------- *)
 
@@ -181,8 +221,9 @@ let pp_print_type,pp_print_qtype =
     | "prod",[ty1;ty2] -> soc "#" (pr > 4) [sot 5 ty1; sot 4 ty2]
     | "cart",[ty1;ty2] -> soc "^" (pr > 6) [sot 6 ty1; sot 7 ty2]
     | con,args -> (soc "," true (map (sot 0) args))^con in
-  (fun fmt ty -> pp_print_string fmt (sot 0 ty)),
-  (fun fmt ty -> pp_print_string fmt ("`:" ^ sot 0 ty ^ "`"));;
+  (fun fmt ty -> pp_print_string_type fmt (sot 0 ty)),
+  (fun fmt ty -> pp_print_string fmt "`:"; pp_print_string_type fmt (sot 0 ty);
+                 pp_print_string fmt "`");;
 
 (* ------------------------------------------------------------------------- *)
 (* Allow the installation of user printers. Must fail quickly if N/A.        *)
@@ -313,13 +354,13 @@ let pp_print_term =
       try let eqs,bod = dest_let tm in
           (if prec = 0 then pp_open_hvbox fmt 0
            else (pp_open_hvbox fmt 1; pp_print_string fmt "(");
-           pp_print_string fmt "let ";
+           pp_print_string_resword fmt "let ";
            print_term 0 (mk_eq(hd eqs));
            do_list (fun (v,t) -> pp_print_break fmt 1 0;
-                                 pp_print_string fmt "and ";
+                                 pp_print_string_resword fmt "and ";
                                  print_term 0 (mk_eq(v,t)))
                    (tl eqs);
-           pp_print_string fmt " in";
+           pp_print_string_resword fmt " in";
            pp_print_break fmt 1 0;
            print_term 0 bod;
            if prec = 0 then () else pp_print_string fmt ")";
@@ -339,9 +380,9 @@ let pp_print_term =
         let cls = dest_clauses(hd(tl args)) in
         (if prec = 0 then () else pp_print_string fmt "(";
          pp_open_hvbox fmt 0;
-         pp_print_string fmt "match ";
+         pp_print_string_resword fmt "match ";
          print_term 0 (hd args);
-         pp_print_string fmt " with";
+         pp_print_string_resword fmt " with";
          pp_print_break fmt 1 2;
          print_clauses cls;
          pp_close_box fmt ();
@@ -351,7 +392,7 @@ let pp_print_term =
         let cls = dest_clauses(hd args) in
         (if prec = 0 then () else pp_print_string fmt "(";
          pp_open_hvbox fmt 0;
-         pp_print_string fmt "function";
+         pp_print_string_resword fmt "function";
          pp_print_break fmt 1 2;
          print_clauses cls;
          pp_close_box fmt ();
@@ -362,34 +403,34 @@ let pp_print_term =
          pp_open_hvbox fmt (-1);
          (let ccls,ecl = splitlist pdest_cond tm in
           if length ccls <= 4 then
-           (pp_print_string fmt "if ";
+           (pp_print_string_resword fmt "if ";
             print_term 0 (hd args);
             pp_print_break fmt 0 0;
-            pp_print_string fmt " then ";
+            pp_print_string_resword fmt " then ";
             print_term 0 (hd(tl args));
             pp_print_break fmt 0 0;
-            pp_print_string fmt " else ";
+            pp_print_string_resword fmt " else ";
             print_term 0 (hd(tl(tl args)))
            )
           else
-           (pp_print_string fmt "if ";
+           (pp_print_string_resword fmt "if ";
             print_term 0 (fst(hd ccls));
-            pp_print_string fmt " then ";
+            pp_print_string_resword fmt " then ";
             print_term 0 (snd(hd ccls));
             pp_print_break fmt 0 0;
             do_list (fun (i,t) ->
-              pp_print_string fmt " else if ";
+              pp_print_string_resword fmt " else if ";
               print_term 0 i;
-              pp_print_string fmt " then ";
+              pp_print_string_resword fmt " then ";
               print_term 0 t;
               pp_print_break fmt 0 0) (tl ccls);
-            pp_print_string fmt " else ";
+            pp_print_string_resword fmt " else ";
             print_term 0 ecl));
          pp_close_box fmt ();
          (if prec = 0 then () else pp_print_string fmt ")"))
       else if is_prefix s && length args = 1 then
         (if prec = 1000 then pp_print_string fmt "(" else ();
-         pp_print_string fmt s;
+         pp_print_string_prefix fmt s;
          (if isalnum s ||
            s = "--" &&
            length args = 1 &&
@@ -419,7 +460,7 @@ let pp_print_term =
                            else if mem s (!prebroken_binops)
                            then pp_print_break fmt 1 0
                            else pp_print_string fmt " ";
-                           pp_print_string fmt s;
+                           pp_print_string_infix fmt s;
                            if mem s (!unspaced_binops)
                            then pp_print_break fmt 0 0
                            else if mem s (!prebroken_binops)
@@ -439,13 +480,15 @@ let pp_print_term =
         then
           (pp_open_box fmt 0;
           pp_print_string fmt "(";
-          pp_print_string fmt s';
+          (if (is_const hop) then pp_print_string_const fmt s'
+           else pp_print_string fmt s');
           pp_print_string fmt ":";
           pp_print_type fmt (type_of hop);
           pp_print_string fmt ")";
           pp_close_box fmt ())
         else
-          pp_print_string fmt s'
+          (if (is_const hop) then pp_print_string_const fmt s'
+           else pp_print_string fmt s')
       else
         let l,r = dest_comb tm in
         (pp_open_hvbox fmt 0;
@@ -494,7 +537,7 @@ let pp_print_term =
       let vs,bod = collectvs tm in
       ((if prec = 0 then pp_open_hvbox fmt 4
         else (pp_open_hvbox fmt 5; pp_print_string fmt "("));
-       pp_print_string fmt s';
+       pp_print_string_binder fmt s';
        (if isalnum s' then pp_print_string fmt " " else ());
        do_list (fun (b,x) ->
          (if b then pp_print_string fmt "(" else ());
