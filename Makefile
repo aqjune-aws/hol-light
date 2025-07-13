@@ -100,7 +100,7 @@ pa_j.ml: pa_j/pa_j_3.07.ml pa_j/pa_j_3.08.ml pa_j/pa_j_3.09.ml \
          pa_j/pa_j_4.xx_8.03.ml pa_j/pa_j_4.xx_8.03.05.ml; \
         if test ${OCAML_BINARY_VERSION} = "3.0"  ; \
         then cp pa_j/pa_j_${OCAML_VERSION}.ml pa_j.ml ; \
-        elif test ${CAMLP5_FULL_VERSION} = 8.03.05 ; \
+        elif test ${CAMLP5_FULL_VERSION} = "8.03.05" -o ${CAMLP5_FULL_VERSION} = "8.03.06" ; \
         then cp pa_j/pa_j_4.xx_8.03.05.ml pa_j.ml; \
         elif test ${CAMLP5_BINARY_VERSION} = "8.00" -o ${CAMLP5_BINARY_VERSION} = "8.02" -o ${CAMLP5_BINARY_VERSION} = "8.03" ; \
         then cp pa_j/pa_j_4.xx_${CAMLP5_BINARY_VERSION}.ml pa_j.ml; \
