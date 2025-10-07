@@ -1,0 +1,81 @@
+This is the locally installable version of the HOL(y)Hammer AI/ATP advisor.
+See http://arxiv.org/abs/1211.7012 for its general description.
+
+Any line that starts with # is supposed to be executed with OCaml,
+Any line that starts with $ is supposed to be executed with the shell.
+
+## PREREQUISITES
+
+Get the SNoW system (we use version 3.2.2) from https://cogcomp.seas.upenn.edu/page/download_view/SNoW ,
+extract its contents at this directory, patch and compile it:
+
+```
+$ tar xzf SNoW_v3.2.2.tar.gz
+$ cd Snow_v3.2
+$ patch < ../snow32.diff
+$ make SERVER=1
+```
+
+If the build raises a type checking failure on the `bind` function, add `-std=c++03` to `CXXFLAGS`
+in Makefile.
+If building `SnowParam.cpp` cannot find `getopt`, please add `#include <unistd.h>`.
+
+Get the ATP systems. HOLyHammer uses Vampire, Z3 and E.
+The following binaries should be in your $PATH: vampire, eprover, epclextract, z3.
+The ATPs can be obtained from
+
+- Vampire: https://vprover.github.io/
+- E: https://wwwlehre.dhbw-stuttgart.de/~sschulz/E/E.html
+- Z3: https://github.com/Z3Prover/z3/releases
+
+## EXPORTING FOR LEARNING
+
+The first run of HOL-Light is loading HOL Light + ... (= any optional developments
+for which you will want the advice system), using `prepare-db.sh`.
+For example:
+
+```
+$ cd ..
+$ ./HOLyHammer/prepare-db.sh 'loadt "Library/words.ml"'
+
+## RUNNING
+
+Now you will get advice: Load HOL-Light + (the extra development setting,
+such as 'loadt "Library/words.ml"'), then:
+
+```
+# loads "HOLyHammer/hh_learn.ml";;
+# process_deps (!hol_dir ^ "/HOLyHammer/inp.hum") process_hum;;
+```
+
+Start the SNoW server in a separate terminal:
+
+```
+$ HOLyHammer/start-server.sh
+```
+
+And then add:
+
+```
+# loads "HOLyHammer/load_advice_tac.ml";;
+```
+
+## ASKING FOR ADVICE
+
+Now you can try:
+
+```
+# g `x = 1 ==> x + x = 2`;;
+# e HH_ADVICE_TAC;;
+```
+
+## IMPROVING THE PERFORMANCE
+
+Optionally, if you have some ATP-generated dependencies, you can strengthen
+the machine learning. To do so prepare an HOLyHammer/atpdeps file and do the following:
+
+```
+# process_deps "HOLyHammer/inp.atp" process_atp;;
+$ HOLyHammer/Snow_v3.2/snow -train -I HOLyHammer/inp.atp -F HOLyHammer/net.atp -B :0-$[$(cat HOLyHammer/deps.all | wc -l)-1]
+$ HOLyHammer/Snow_v3.2/snow -server 60001 -o allboth -F HOLyHammer/net.atp -B :0-$[$(cat HOLyHammer/deps.all | wc -l)-1]
+```

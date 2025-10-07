@@ -1,0 +1,144 @@
+Only in Snow_v3.2p: Cloud.o
+Only in Snow_v3.2p: Example.o
+diff -ur Snow_v3.2/Main.cpp Snow_v3.2p/Main.cpp
+--- Snow_v3.2/Main.cpp	2009-01-08 20:17:09.000000000 +0100
++++ Snow_v3.2p/Main.cpp	2013-02-04 16:20:34.000000000 +0100
+@@ -40,7 +40,7 @@
+ #include <sys/types.h>
+ #include <sys/wait.h>
+ #include <signal.h>
+-#include <pthread.h>
++//#include <pthread.h>
+ #include <stdlib.h>
+ #ifndef WIN32
+ #include <unistd.h>
+@@ -59,7 +59,7 @@
+ struct ClientData
+ {
+   int                 fileDesc;
+-  pthread_mutex_t*    pLexiconMutex;
++  //  pthread_mutex_t*    pLexiconMutex;
+   Snow *              snow;
+ };
+ 
+@@ -204,11 +204,16 @@
+     exit(1);
+   }
+ 
+-  pthread_mutex_t lexiconMutex;
+-  pthread_mutex_init(&lexiconMutex, NULL);
++  //  pthread_mutex_t lexiconMutex;
++  //  pthread_mutex_init(&lexiconMutex, NULL);
+ 
+   signal(SIGHUP, SigHandler);
+ 
++  struct sigaction sa;
++  memset( &sa, 0, sizeof(sa) );
++  sa.sa_handler = SIG_IGN;
++  int res = sigaction( SIGPIPE, &sa, NULL);
++
+   // Copy the inputFile to testFile in this case
+   globalParams.testFile = globalParams.inputFile;
+ 
+@@ -262,7 +267,7 @@
+     ClientData cd;
+     cd.fileDesc = new_fd;
+     //    cd.network = (*s).network;
+-    cd.pLexiconMutex = &lexiconMutex;
++    //cd.pLexiconMutex = &lexiconMutex;
+ 
+     //    cd.globalParams = &globalParams; 
+     cd.snow = s;
+@@ -270,11 +275,13 @@
+     pthread_t theThread;
+     int threadVal;
+ 
+-    threadVal = pthread_create(&theThread, NULL, ProcessSocket, &cd);
++    //    threadVal = pthread_create(&theThread, NULL, 
++    ProcessSocket(&cd);
++                               //, &cd);
+     //cout << threadVal << endl;
+   }
+ 
+-  pthread_mutex_destroy(&lexiconMutex);
++  //pthread_mutex_destroy(&lexiconMutex);
+ 
+   close(sockfd);
+ }
+@@ -285,7 +292,7 @@
+   const bool DEBUG_SERVER(false);
+ 
+   int client_fd = ((ClientData*)clientData)->fileDesc;
+-  pthread_mutex_t* pLexiconMutex(((ClientData*)clientData)->pLexiconMutex);
++  //pthread_mutex_t* pLexiconMutex(((ClientData*)clientData)->pLexiconMutex);
+   Snow * s = ((ClientData*)clientData)->snow;
+ 
+   Network* network = s->network;
+@@ -298,14 +305,14 @@
+ 		     network->SingleTarget(), network->FirstThreshold());
+ 
+   // parent thread doesn't need to 'join' us
+-  pthread_detach(pthread_self()); 
++  //pthread_detach(pthread_self()); 
+ 
+   // Block the ourselves from handling SIGHUP
+   // so the main thread always gets it 
+-  sigset_t blockSet;
+-  sigemptyset(&blockSet);
+-  sigaddset(&blockSet, SIGHUP);
+-  pthread_sigmask(SIG_BLOCK, &blockSet, NULL);
++  //sigset_t blockSet;
++  //sigemptyset(&blockSet);
++  //sigaddset(&blockSet, SIGHUP);
++  //pthread_sigmask(SIG_BLOCK, &blockSet, NULL);
+ 
+   char* options;
+   if (receive_bytes(client_fd, options, 0))
+Only in Snow_v3.2p: Main.cpp~
+Only in Snow_v3.2p: Main.o
+diff -ur Snow_v3.2/Makefile Snow_v3.2p/Makefile
+--- Snow_v3.2/Makefile	2009-01-08 20:22:19.000000000 +0100
++++ Snow_v3.2p/Makefile	2013-02-04 16:11:01.000000000 +0100
+@@ -1,7 +1,7 @@
+ 
+ NAME = snow
+ VERSION = 3.2.1
+-PROFILE = -pg -gstabs  # If you want to create performance profiles with gprof
++PROFILE = -ggdb  # If you want to create performance profiles with gprof
+ CXXFLAGS = $(PROFILE)
+ 
+ ifdef SERVER
+@@ -12,19 +12,19 @@
+ ifneq (,$(findstring Linux, $(OSTYPE)))
+   CXXFLAGS += -DLINUX
+   ifdef SERVER
+-    LIBRARIES = -lpthread
++    LIBRARIES = #-lpthread
+   endif
+ endif
+ 
+ ifneq (,$(findstring SunOS, $(OSTYPE)))
+   ifdef SERVER
+-    LIBRARIES = -lxnet -lpthread
++    LIBRARIES = -lxnet #-lpthread
+   endif
+ endif
+ 
+ ifneq (,$(findstring Darwin, $(OSTYPE)))
+   ifdef SERVER
+-    LIBRARIES = -lpthread
++    LIBRARIES = #-lpthread
+   endif
+ endif
+ 
+Only in Snow_v3.2p: Makefile~
+Only in Snow_v3.2p: NaiveBayes.o
+Only in Snow_v3.2p: Network.o
+Only in Snow_v3.2p: Perceptron.o
+Only in Snow_v3.2p: snow
+Only in Snow_v3.2p: Snow.o
+Only in Snow_v3.2p: SnowParam.o
+Only in Snow_v3.2p: TargetIdSet.o
+Only in Snow_v3.2p: Target.o
+Only in Snow_v3.2p: TargetRank.o
+Only in Snow_v3.2p: Winnow.o
