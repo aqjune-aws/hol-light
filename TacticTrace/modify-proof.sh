@@ -13,6 +13,8 @@ echo "  - output: $output"
 echo "======================================================================"
 dumpdir=$3
 
+export TACLOGGER_DIR=${HOLLIGHT_DIR}/TacticTrace
+
 basedir=${TACLOGGER_DIR}
 
 # Remove the line number directives first.
