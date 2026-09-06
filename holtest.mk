@@ -31,6 +31,7 @@ STANDALONE_EXAMPLES:=\
 	Examples/forster \
 	Examples/gcdrecurrence \
 	Library/grouptheory \
+	Autoformalization/hilbert_waring \
 	Examples/harmonicsum \
 	Examples/hol88 \
 	Examples/holby \
@@ -55,6 +56,7 @@ STANDALONE_EXAMPLES:=\
 	Examples/padics \
 	Examples/pell \
 	Library/permutations \
+	Autoformalization/planar_graph \
 	Library/primitive \
 	Library/products \
 	Examples/prog \
