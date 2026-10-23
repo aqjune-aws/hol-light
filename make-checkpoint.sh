@@ -31,29 +31,34 @@ fi
 mkdir -p ${output_dmtcp_dir_path}
 
 # Create an .ml file for initialization
-init_ml_path=$(mktemp --suffix=".ml")
+init_ml_path=$(mktemp "${TMPDIR:-/tmp}/hol-light-init.XXXXXX")
 # If HOL Light is fully loaded, "loaded" will be written to this file.
-hol_is_loaded_log=$(mktemp --suffix=".hol_loaded")
+hol_is_loaded_log=$(mktemp "${TMPDIR:-/tmp}/hol-light-loaded.XXXXXX")
 
-echo '#use "hol.ml";;' >> ${init_ml_path}
+echo '#use "hol.ml";;' >> "${init_ml_path}"
 if [ $# -eq 2 ]; then
   additional_ocaml_statement=$2
-  echo "try begin" >> ${init_ml_path}
-  echo "  ${additional_ocaml_statement};" >> ${init_ml_path}
-  echo "  Printf.printf \"HOL Light loaded.\n\"" >> ${init_ml_path}
-  echo "end with e -> print_endline (Printexc.to_string e);;" >> ${init_ml_path}
+  echo "try begin" >> "${init_ml_path}"
+  echo "  ${additional_ocaml_statement};" >> "${init_ml_path}"
+  echo "  Printf.printf \"HOL Light loaded.\n\"" >> "${init_ml_path}"
+  echo "end with e -> print_endline (Printexc.to_string e);;" >> "${init_ml_path}"
 else
-  echo "Printf.printf \"HOL Light loaded.\n\";;" >> ${init_ml_path}
+  echo "Printf.printf \"HOL Light loaded.\n\";;" >> "${init_ml_path}"
 fi
 echo "let __ckpt_f = open_out \"${hol_is_loaded_log}\" in Printf.fprintf __ckpt_f \"loaded\"; close_out __ckpt_f;;" \
-  >> ${init_ml_path}
+  >> "${init_ml_path}"
+if [ "$(uname -s)" = Darwin ]; then
+  echo 'external __dmtcp_checkpoint_wait : unit -> unit = "caml_dmtcp_checkpoint_wait";;' \
+    >> "${init_ml_path}"
+  echo '__dmtcp_checkpoint_wait ();;' >> "${init_ml_path}"
+fi
 
 # Use this init_ml_path when hol.sh begins
 echo "Setting HOL_ML_PATH to ${init_ml_path}..."
-export HOL_ML_PATH=${init_ml_path}
+export HOL_ML_PATH="${init_ml_path}"
 
 # Locate hol.sh
-current_dir=$(dirname -- "$( readlink -f -- "$0"; )")
+current_dir=$(CDPATH= cd -- "$(dirname -- "$0")" && pwd -P)
 hol_sh_path="${current_dir}/hol.sh"
 HOLLIGHT_DIR="$(${hol_sh_path} -dir)"
 
@@ -96,5 +101,23 @@ function checkpoint_after_load () {
 
 checkpoint_after_load &
 
-# Launch hol.sh using dmtcp_launch.
-bash -i -c "dmtcp_launch --new-coordinator --ckptdir ${output_dmtcp_dir_path} ${hol_sh_path}"
+# Launch HOL Light using the injectable OCaml runtime on macOS. Linux keeps
+# the established hol.sh launch path.
+if [ "$(uname -s)" = Darwin ]; then
+  ocamlrun=${DMTCP_OCAMLRUN:-${HOLLIGHT_DIR}/ocaml-dmtcp-5.4.0/_install/bin/ocamlrun}
+  if [ ! -x "$ocamlrun" ]; then
+    echo "Set DMTCP_OCAMLRUN to the patched OCaml runtime."
+    exit 1
+  fi
+  export HOLLIGHT_DIR
+  HOLLIGHT_USE_MODULE=$("$hol_sh_path" -use-module)
+  export HOLLIGHT_USE_MODULE
+  custom_stublibs=$(dirname -- "$ocamlrun")/../lib/ocaml/stublibs
+  CAML_LD_LIBRARY_PATH="${HOLLIGHT_DIR}/_opam/lib/stublibs:${custom_stublibs}${CAML_LD_LIBRARY_PATH:+:${CAML_LD_LIBRARY_PATH}}"
+  export CAML_LD_LIBRARY_PATH
+  dmtcp_launch --new-coordinator --ckptdir "$output_dmtcp_dir_path" \
+    "$ocamlrun" "${HOLLIGHT_DIR}/ocaml-hol" \
+    -init "$init_ml_path" -I "$HOLLIGHT_DIR"
+else
+  bash -i -c "dmtcp_launch --new-coordinator --ckptdir ${output_dmtcp_dir_path} ${hol_sh_path}"
+fi
